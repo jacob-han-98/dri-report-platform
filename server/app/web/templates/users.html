@@ -40,7 +40,9 @@
   </form>
   <p class="muted" style="font-size:12px; margin: 8px 0 0;">
     User row 만 생성. 이메일 발송 안 함 — 초대 대상에게 직접 안내해서
-    <code>https://localhost:8443/auth/login</code> 으로 로그인하면 자동 연결됨.
+    <code>{{ login_url }}</code> 으로 로그인하면 자동 연결됨.
+    (사전 초대 없이 그냥 위 URL 로 로그인해도 자동으로 user role 로 가입됨 —
+    초대는 role 을 미리 admin 으로 지정할 때만 필요.)
   </p>
 </div>
 

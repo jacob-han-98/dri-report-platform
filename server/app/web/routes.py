@@ -696,10 +696,12 @@ def users_page(
         }
         for u in rows
     ]
+    settings = get_settings()
+    login_url = f"{settings.app.base_url.rstrip('/')}{settings.app.web_prefix}/auth/login"
     return templates.TemplateResponse(
         request,
         "users.html",
-        {"user": _user_ctx(request, actor), "users": users},
+        {"user": _user_ctx(request, actor), "users": users, "login_url": login_url},
     )
 
 

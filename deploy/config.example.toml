@@ -1,0 +1,37 @@
+# Hybe Reports Platform — config 예시
+# 로컬 dev: 이 파일을 프로젝트 루트의 `config.toml` 로 복사하고 bypass_auth_email 설정
+# 운영: /etc/hybe-reports/config.toml 에 위치 + HYBE_REPORTS_CONFIG 환경변수로 지정
+
+[app]
+base_url = "http://localhost:8000"
+secret_key = "change-me-to-random-64-chars"
+session_lifetime_days = 7
+
+[google]
+# Slice 1 이후 OIDC 추가 시 필요 — dev bypass 만 쓸 거면 비워둬도 됨
+client_id = ""
+client_secret = ""
+allowed_domain = ""
+admin_emails = []
+
+[storage]
+# 로컬 dev: 상대 경로. 운영: /var/reports 등 절대 경로
+reports_dir = "./var/reports"
+db_path = "./var/reports/_meta/reports.db"
+max_upload_mb = 100
+max_extracted_mb = 200
+max_files_per_report = 5000
+
+[token]
+default_expiry_days = 90
+max_expiry_days = 365
+prefix = "hybe_pat_"
+
+[dev]
+# 로컬 개발용 인증 우회. 비어 있으면 /auth/check 가 401.
+# 이 이메일로 자동 user upsert 되며, role 도 함께 설정됨.
+bypass_auth_email = ""
+bypass_auth_role = "admin"
+
+[audit]
+retention_days = 365

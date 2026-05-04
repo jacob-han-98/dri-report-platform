@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Hybe Reports{% endblock %}</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a2030;
+    --panel-2: #232a3d;
+    --border: rgba(255,255,255,0.08);
+    --text: #e6edf6;
+    --muted: #8b9cb3;
+    --accent: #4cc9f0;
+    --good: #4ade80;
+    --warn: #facc15;
+    --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  header.topbar {
+    display: flex; align-items: center; gap: 24px;
+    padding: 14px 32px; background: var(--panel);
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+  }
+  .brand { font-weight: 700; font-size: 18px; color: var(--text); }
+  .brand a { color: var(--text); }
+  .nav { display: flex; gap: 16px; flex: 1; }
+  .nav a { color: var(--muted); font-size: 14px; }
+  .nav a.active, .nav a:hover { color: var(--text); }
+  .user-chip {
+    background: var(--panel-2); padding: 6px 12px; border-radius: 999px;
+    font-size: 13px; color: var(--muted);
+  }
+  .user-chip strong { color: var(--text); }
+  main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .grow { flex: 1; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--panel-2); color: var(--text);
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+    font-size: 14px; cursor: pointer; text-decoration: none;
+  }
+  .btn:hover { background: var(--panel); text-decoration: none; }
+  .btn.primary { background: var(--accent); color: #0f1419; border-color: transparent; font-weight: 600; }
+  .btn.danger { color: var(--bad); }
+  input, select, textarea {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-size: 14px; font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge.internal { background: rgba(74,222,128,0.15); color: var(--good); }
+  .badge.restricted { background: rgba(250,204,21,0.15); color: var(--warn); }
+  .muted { color: var(--muted); }
+  .empty {
+    text-align: center; padding: 80px 20px; color: var(--muted);
+    border: 1px dashed var(--border); border-radius: 12px;
+  }
+  code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .view-as-banner {
+    background: rgba(250,204,21,0.12);
+    border-bottom: 1px solid rgba(250,204,21,0.4);
+    color: var(--warn);
+    padding: 10px 32px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px;
+  }
+  .view-as-banner strong { color: var(--warn); }
+  .view-as-banner form { margin-left: auto; }
+  .view-as-banner button {
+    background: var(--warn); color: #0f1419; border: none;
+    padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    cursor: pointer;
+  }
+</style>
+{% block head_extra %}{% endblock %}
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><a href="{{ url('/') }}">📊 Hybe Reports</a></div>
+  <nav class="nav">
+    <a href="{{ url('/') }}" data-testid="nav-home">홈</a>
+    <a href="{{ url('/settings/tokens') }}" data-testid="nav-tokens">토큰</a>
+    {% if user.role == 'admin' %}
+    <a href="{{ url('/settings/users') }}" data-testid="nav-users">사용자</a>
+    <a href="{{ url('/settings/audit') }}" data-testid="nav-audit">감사로그</a>
+    {% endif %}
+  </nav>
+  {% if user.actual_role == 'admin' and not user.view_as_active %}
+  <form method="post" action="{{ url('/settings/view-as') }}" style="display:inline;">
+    {{ csrf_input() }}
+    <input type="hidden" name="role" value="user">
+    <button type="submit" class="btn" data-testid="view-as-user"
+            style="padding:6px 12px; font-size:13px;" title="일반 사용자 시점으로 보기">
+      👁 일반사용자
+    </button>
+  </form>
+  {% endif %}
+  <span class="user-chip" data-testid="user-chip">
+    <strong>{{ user.email }}</strong> · {{ user.role }}{% if user.view_as_active %}
+      <span class="muted" style="font-size:11px"> (실제: {{ user.actual_role }})</span>
+    {% endif %}
+  </span>
+  <a href="{{ url('/auth/logout') }}" class="btn" data-testid="logout-btn"
+     style="padding:6px 12px; font-size:13px;">로그아웃</a>
+</header>
+
+{% if user.view_as_active %}
+<div class="view-as-banner" data-testid="view-as-banner">
+  <span>👁</span>
+  <span>현재 <strong>일반 사용자 시점</strong> — 실제 role 은 <strong>{{ user.actual_role }}</strong></span>
+  <form method="post" action="{{ url('/settings/view-as/clear') }}">
+    {{ csrf_input() }}
+    <button type="submit" data-testid="view-as-restore">관리자로 복귀</button>
+  </form>
+</div>
+{% endif %}
+<main>
+{% block main %}{% endblock %}
+</main>
+</body>
+</html>

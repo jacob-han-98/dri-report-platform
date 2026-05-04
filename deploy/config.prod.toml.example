@@ -1,0 +1,42 @@
+# Production config for cp.tech2.hybe.im/dri_report
+# 복사 후 적당히 수정: cp config.prod.toml.example /home/ubuntu/dri_report/config.toml
+# secret_key 와 google.client_secret 는 절대 git 에 들어가면 안 됨.
+
+[app]
+base_url = "https://cp.tech2.hybe.im"
+# 외부에 노출되는 prefix (nginx 가 이 prefix 를 떼고 uvicorn 으로 forward).
+web_prefix = "/dri_report"
+# `python -c 'import secrets; print(secrets.token_urlsafe(48))'` 로 생성
+secret_key = "REPLACE-WITH-RANDOM-48-BYTES"
+session_lifetime_days = 7
+
+[google]
+# OAuth 2.0 Client (Web application). Authorized redirect URI:
+#   https://cp.tech2.hybe.im/dri_report/auth/callback
+client_id = "REPLACE.apps.googleusercontent.com"
+client_secret = "REPLACE"
+# Internal app 모드면 hybecorp.com 자동 허용. allowed_domain 세팅 시 hd 클레임 강제.
+allowed_domain = "hybecorp.com"
+admin_emails = [
+    "jacob@hybecorp.com",
+]
+
+[storage]
+reports_dir = "/home/ubuntu/dri_report/server/var/reports"
+db_path = "/home/ubuntu/dri_report/server/var/reports/_meta/reports.db"
+max_upload_mb = 100
+max_extracted_mb = 200
+max_files_per_report = 5000
+
+[token]
+default_expiry_days = 90
+max_expiry_days = 365
+prefix = "hybe_pat_"
+
+[dev]
+# **반드시 빈 값** — OIDC-only 강제. 빈 값 아니면 누구든 그 이메일로 가장됨.
+bypass_auth_email = ""
+bypass_auth_role = "user"
+
+[audit]
+retention_days = 365

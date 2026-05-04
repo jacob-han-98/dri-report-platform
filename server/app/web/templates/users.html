@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}사용자 — Hybe Reports{% endblock %}
+{% block head_extra %}
+<style>
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  th { background: rgba(76,201,240,0.05); color: var(--muted);
+       font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  tr:last-child td { border-bottom: 0; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 24px;
+  }
+  .panel h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .status.active { background: rgba(74,222,128,0.15); color: var(--good); }
+  .status.disabled { background: rgba(248,113,113,0.15); color: var(--bad); }
+  .status.pending { background: rgba(250,204,21,0.15); color: var(--warn); }
+  form.row-form { display: inline-flex; gap: 4px; align-items: center; }
+  form.row-form select, form.row-form button { padding: 4px 8px; font-size: 12px; }
+  form.invite-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  form.invite-form input[type=email] { flex: 1; min-width: 240px; }
+  .self-mark { color: var(--muted); font-size: 11px; margin-left: 6px; }
+</style>
+{% endblock %}
+{% block main %}
+<h1 style="font-size:22px; margin:0 0 16px;">사용자 ({{ users|length }})</h1>
+
+<div class="panel">
+  <h2>초대</h2>
+  <form class="invite-form" method="post" action="{{ url('/settings/users/invite') }}" data-testid="invite-form">
+    {{ csrf_input() }}
+    <input type="email" name="email" placeholder="user@hybecorp.com" required
+           data-testid="invite-email">
+    <select name="role" data-testid="invite-role">
+      <option value="user" selected>user</option>
+      <option value="admin">admin</option>
+    </select>
+    <button class="btn primary" type="submit" data-testid="invite-submit">+ 초대</button>
+  </form>
+  <p class="muted" style="font-size:12px; margin: 8px 0 0;">
+    User row 만 생성. 이메일 발송 안 함 — 초대 대상에게 직접 안내해서
+    <code>https://localhost:8443/auth/login</code> 으로 로그인하면 자동 연결됨.
+  </p>
+</div>
+
+<div class="panel">
+  <h2>사용자 목록</h2>
+  <table data-testid="users-table">
+    <thead>
+      <tr>
+        <th>이메일</th>
+        <th>이름</th>
+        <th>role</th>
+        <th>status</th>
+        <th>last login</th>
+        <th>리포트</th>
+        <th>액션</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in users %}
+      <tr data-testid="user-row-{{ u.email }}">
+        <td>
+          {{ u.email }}
+          {% if u.is_self %}<span class="self-mark">(나)</span>{% endif %}
+        </td>
+        <td class="muted">{{ u.display_name or '-' }}</td>
+        <td>
+          {% if u.is_self %}
+            <strong>{{ u.role }}</strong>
+          {% else %}
+            <form class="row-form" method="post" action="{{ url('/settings/users/' ~ u.email ~ '/role') }}">
+              {{ csrf_input() }}
+              <select name="role" data-testid="role-select-{{ u.email }}">
+                <option value="user" {% if u.role == 'user' %}selected{% endif %}>user</option>
+                <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>admin</option>
+              </select>
+              <button class="btn" type="submit" data-testid="role-submit-{{ u.email }}">→</button>
+            </form>
+          {% endif %}
+        </td>
+        <td><span class="status {{ u.status }}" data-testid="status-{{ u.email }}">{{ u.status }}</span></td>
+        <td class="muted" style="font-size:12px">{{ u.last_login_at or (u.invited_at and ('초대 ' ~ u.invited_at)) or '-' }}</td>
+        <td>{{ u.report_count }}</td>
+        <td>
+          {% if not u.is_self %}
+            {% if u.disabled_at %}
+              <form class="row-form" method="post" action="{{ url('/settings/users/' ~ u.email ~ '/enable') }}">
+                {{ csrf_input() }}
+                <button class="btn" type="submit" data-testid="enable-{{ u.email }}">활성화</button>
+              </form>
+            {% else %}
+              <form class="row-form" method="post" action="{{ url('/settings/users/' ~ u.email ~ '/disable') }}"
+                    onsubmit="return confirm('{{ u.email }} 비활성화? 로그인/접근 차단됨.');">
+                {{ csrf_input() }}
+                <button class="btn danger" type="submit" data-testid="disable-{{ u.email }}">비활성화</button>
+              </form>
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

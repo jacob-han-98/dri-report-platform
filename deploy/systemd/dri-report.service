@@ -1,0 +1,20 @@
+[Unit]
+Description=DRI Report Platform (cp.tech2.hybe.im/dri_report)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/dri_report/server
+Environment="PATH=/home/ubuntu/dri_report/server/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="HYBE_REPORTS_CONFIG=/home/ubuntu/dri_report/config.toml"
+ExecStart=/home/ubuntu/dri_report/server/.venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port 8092 \
+    --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/dri-report.log
+StandardError=append:/var/log/dri-report.log
+
+[Install]
+WantedBy=multi-user.target

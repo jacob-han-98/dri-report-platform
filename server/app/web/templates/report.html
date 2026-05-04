@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ report.title }} — Hybe Reports{% endblock %}
+{% block head_extra %}
+<style>
+  .header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .meta-line { color: var(--muted); font-size: 13px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+  }
+  .panel h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase;
+              letter-spacing: 1px; color: var(--muted); }
+  .kv { display: grid; grid-template-columns: 140px 1fr; gap: 8px 16px; font-size: 14px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; }
+  .actions-bar { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+  .url-box {
+    display: flex; gap: 8px; align-items: center;
+    background: var(--panel-2); padding: 8px 12px; border-radius: 8px;
+    font-family: ui-monospace, monospace; font-size: 13px;
+  }
+  .viewer-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .viewer-row:last-child { border-bottom: 0; }
+  .viewer-row .email { flex: 1; }
+  form.inline { display: flex; gap: 8px; margin-top: 12px; }
+  form.inline input[type=email] { flex: 1; }
+</style>
+{% endblock %}
+{% block main %}
+<div class="header-row">
+  <div>
+    <h1 data-testid="report-title">{{ report.title }}</h1>
+    <div class="meta-line">
+      <code>{{ report.slug }}</code>
+      · owner <strong>{{ report.owner }}</strong>
+      · <span class="badge {{ report.visibility }}">{{ report.visibility }}</span>
+    </div>
+  </div>
+  <a href="{{ url('/') }}" class="btn">← 홈</a>
+</div>
+
+<div class="actions-bar">
+  <a class="btn primary" href="{{ report.url }}" target="_blank" rel="noopener" data-testid="open-report">
+    ▶ 리포트 열기
+  </a>
+  <button class="btn" type="button" data-testid="copy-url"
+          onclick="navigator.clipboard.writeText(window.location.origin + '{{ report.url }}'); this.textContent='✓ 복사됨';">
+    ⤴ URL 복사
+  </button>
+  {% if can_manage %}
+  <form method="post" action="{{ url('/reports/' ~ report.slug ~ '/delete') }}" style="margin-left:auto"
+        onsubmit="return confirm('정말 삭제할까요? 되돌릴 수 없어요.');">
+    {{ csrf_input() }}
+    <button class="btn danger" type="submit" data-testid="delete-report">🗑 삭제</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>정보</h2>
+  <dl class="kv">
+    <dt>설명</dt><dd>{{ report.description or '-' }}</dd>
+    <dt>태그</dt><dd>{% if report.tags %}{{ report.tags | join(', ') }}{% else %}-{% endif %}</dd>
+    <dt>entry point</dt><dd><code>{{ report.entry_point }}</code></dd>
+    <dt>크기</dt><dd>{{ report.size }} ({{ report.file_count }} files)</dd>
+    <dt>생성</dt><dd>{{ report.created_at }}</dd>
+    <dt>수정</dt><dd>{{ report.updated_at }}</dd>
+    <dt>조회수</dt><dd>{{ report.view_count }}</dd>
+    <dt>URL</dt>
+    <dd>
+      <span class="url-box" data-testid="report-url">{{ report.url }}</span>
+    </dd>
+  </dl>
+</div>
+
+{% if can_manage %}
+<div class="panel" data-testid="viewers-panel">
+  <h2>접근 권한</h2>
+
+  <form method="post" action="{{ url('/reports/' ~ report.slug ~ '/visibility') }}" class="inline"
+        data-testid="visibility-form" style="margin-bottom:16px">
+    {{ csrf_input() }}
+    <label class="muted" for="vis-select" style="font-size:13px; align-self:center">
+      가시성:
+    </label>
+    <select id="vis-select" name="visibility" data-testid="visibility-select">
+      <option value="internal" {% if report.visibility=='internal' %}selected{% endif %}>
+        internal (모든 로그인 사용자)
+      </option>
+      <option value="restricted" {% if report.visibility=='restricted' %}selected{% endif %}>
+        restricted (owner + viewers)
+      </option>
+    </select>
+    <button class="btn" type="submit">적용</button>
+  </form>
+
+  <h3 style="font-size:13px; color:var(--muted); margin:16px 0 8px;">Viewers</h3>
+  {% if viewers %}
+  <div data-testid="viewers-list">
+    {% for v in viewers %}
+    <div class="viewer-row" data-testid="viewer-{{ v.user_email }}">
+      <span class="email">{{ v.user_email }}</span>
+      <span class="muted" style="font-size:12px">
+        granted by {{ v.granted_by }} · {{ v.granted_at }}
+      </span>
+      <form method="post" action="{{ url('/reports/' ~ report.slug ~ '/viewers/remove') }}">
+        {{ csrf_input() }}
+        <input type="hidden" name="email" value="{{ v.user_email }}">
+        <button class="btn danger" type="submit" style="padding:4px 10px; font-size:12px"
+                data-testid="remove-viewer-{{ v.user_email }}">제거</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted" data-testid="no-viewers">아직 viewer 없음.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url('/reports/' ~ report.slug ~ '/viewers/add') }}" class="inline"
+        data-testid="add-viewer-form">
+    {{ csrf_input() }}
+    <input type="email" name="email" placeholder="user@hybecorp.com"
+           required data-testid="add-viewer-email">
+    <button class="btn primary" type="submit" data-testid="add-viewer-submit">
+      + 추가
+    </button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

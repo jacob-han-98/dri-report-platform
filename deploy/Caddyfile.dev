@@ -1,0 +1,87 @@
+# Hybe Reports Platform — local dev Caddyfile
+#
+# 실행:
+#   caddy run --config deploy/Caddyfile.dev
+#
+# 비특권 포트 8443 사용 — sudo 없이 굴리기 위함.
+# Caddy 가 자체 CA 로 https://localhost:8443 인증서 발급 (curl -k 또는 신뢰 설정 필요).
+# uvicorn 은 같이 :8000 에서 떠 있어야 함.
+
+{
+    # 로컬 dev 전역 옵션
+    auto_https disable_redirects
+    admin off
+    log {
+        format console
+    }
+}
+
+# 메인 사이트 — https://localhost:8443
+localhost:8443 {
+    tls internal
+
+    # /healthz 는 인증 없이 (디버깅용)
+    handle /healthz {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # OIDC 흐름 자체는 익명 접근 (forward_auth 우회). 그 외 /auth/* (예: /auth/check, /auth/me) 는 catch-all 로 떨어져 검증.
+    @oidc_public path /auth/login /auth/callback /auth/logout
+    handle @oidc_public {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # 정적 리포트 — forward_auth + 파일 서빙. 401 시 로그인 페이지로.
+    handle_path /r/* {
+        forward_auth 127.0.0.1:8000 {
+            uri /auth/check
+            copy_headers X-User-Email X-User-Role
+            header_up X-Forwarded-Uri {http.request.orig_uri}
+            @denied status 401
+            handle_response @denied {
+                header Location "/auth/login"
+                respond 302
+            }
+        }
+        root * {$REPORTS_DIR:./var/reports}
+        try_files {path} {path}/index.html
+        file_server
+    }
+
+    # API 와 MCP 는 401 을 그대로 반환 (클라이언트가 처리)
+    @api path /api/* /mcp/*
+    handle @api {
+        forward_auth 127.0.0.1:8000 {
+            uri /auth/check
+            copy_headers X-User-Email X-User-Role
+        }
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # 그 외 브라우저 페이지 — 401 시 /auth/login 으로 redirect
+    handle {
+        forward_auth 127.0.0.1:8000 {
+            uri /auth/check
+            copy_headers X-User-Email X-User-Role
+            @denied status 401
+            handle_response @denied {
+                header Location "/auth/login"
+                respond 302
+            }
+        }
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # 보안 헤더
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}감사로그 — Hybe Reports{% endblock %}
+{% block head_extra %}
+<style>
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: top; }
+  th { background: rgba(76,201,240,0.05); color: var(--muted);
+       font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  tr:last-child td { border-bottom: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .panel h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .actor-token { color: var(--accent); }
+  .actor-session { color: var(--muted); }
+  .actor-mcp { color: var(--warn); }
+  pre.meta { margin: 0; font-size: 11px; color: var(--muted); white-space: pre-wrap; max-width: 320px; overflow-wrap: anywhere; }
+  .pagination { display: flex; gap: 8px; margin-top: 16px; align-items: center; }
+</style>
+{% endblock %}
+{% block main %}
+<h1 style="font-size:22px; margin:0 0 16px;">감사 로그</h1>
+
+<div class="panel">
+  <form class="filters" method="get" action="{{ url('/settings/audit') }}" data-testid="audit-filter">
+    <select name="action" data-testid="filter-action">
+      <option value="">[모든 액션]</option>
+      {% for a in actions %}
+      <option value="{{ a }}" {% if a == filter_action %}selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="user" placeholder="user 이메일"
+           value="{{ filter_user }}" data-testid="filter-user">
+    <button class="btn" type="submit">필터</button>
+    {% if filter_action or filter_user %}
+    <a href="{{ url('/settings/audit') }}" class="btn">초기화</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="panel">
+  <table data-testid="audit-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>시간</th>
+        <th>action</th>
+        <th>actor</th>
+        <th>user</th>
+        <th>resource</th>
+        <th>token</th>
+        <th>ip</th>
+        <th>meta</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for e in entries %}
+      <tr data-testid="audit-row-{{ e.id }}">
+        <td>{{ e.id }}</td>
+        <td>{{ e.timestamp }}</td>
+        <td><strong>{{ e.action }}</strong></td>
+        <td class="actor-{{ e.actor_type }}">{{ e.actor_type }}</td>
+        <td>{{ e.user_email or '-' }}</td>
+        <td>{{ e.resource or '-' }}</td>
+        <td>{{ e.token_prefix or '-' }}</td>
+        <td>{{ e.ip or '-' }}</td>
+        <td>
+          {% if e.metadata %}<pre class="meta">{{ e.metadata | tojson }}</pre>{% else %}-{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not entries %}
+      <tr><td colspan="9" class="muted" data-testid="empty-audit" style="text-align:center; padding:32px;">조건에 맞는 이벤트 없음</td></tr>
+    {% endif %}
+    </tbody>
+  </table>
+
+  <div class="pagination">
+    {% if page > 1 %}
+    <a class="btn" href="?action={{ filter_action }}&user={{ filter_user }}&page={{ page - 1 }}">← 이전</a>
+    {% endif %}
+    <span class="muted">page {{ page }}</span>
+    {% if has_next %}
+    <a class="btn" href="?action={{ filter_action }}&user={{ filter_user }}&page={{ page + 1 }}">다음 →</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}토큰 — Hybe Reports{% endblock %}
+{% block head_extra %}
+<style>
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { background: rgba(76,201,240,0.05); color: var(--muted);
+       font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  tr:last-child td { border-bottom: 0; }
+  .ok { color: var(--good); }
+  .revoked { color: var(--muted); }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 24px;
+  }
+  .panel h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .issue-form { display: grid; gap: 12px; grid-template-columns: 2fr 1fr auto; align-items: end; }
+  .issue-form .field { display: flex; flex-direction: column; gap: 4px; }
+  .issue-form label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .new-panel {
+    background: rgba(74,222,128,0.08);
+    border: 1px solid rgba(74,222,128,0.4);
+  }
+  .new-panel h2 { color: var(--good); }
+  pre.token-out {
+    background: var(--panel-2); padding: 12px; border-radius: 8px;
+    overflow-x: auto; font-size: 13px; word-break: break-all; white-space: pre-wrap;
+    border: 1px solid var(--accent); margin: 0;
+  }
+  .copy-row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+  .warn {
+    color: var(--warn); font-size: 13px; margin: 8px 0 0;
+  }
+  .err { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.4);
+         color: var(--bad); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+  .revoke-btn {
+    background: transparent; border: 1px solid rgba(248,113,113,0.4);
+    color: var(--bad); padding: 4px 10px; border-radius: 6px;
+    font-size: 12px; cursor: pointer;
+  }
+  .revoke-btn:hover { background: rgba(248,113,113,0.1); }
+</style>
+{% endblock %}
+{% block main %}
+<h1 style="font-size:22px; margin:0 0 16px;">API 토큰</h1>
+
+{% if error %}
+<div class="err" data-testid="token-error">{{ error }}</div>
+{% endif %}
+
+{% if new_token %}
+<div class="panel new-panel" data-testid="new-token-panel">
+  <h2>✅ 토큰 발급됨 — 한 번만 표시됩니다</h2>
+  <p class="muted" style="font-size:13px; margin: 0 0 8px;">
+    아래 토큰은 <strong>지금만</strong> 볼 수 있습니다. 안전한 곳(keyring, 1Password 등)에 저장하세요.
+    페이지를 떠나면 다시 볼 수 없고, 분실 시 이 토큰을 폐기하고 새로 발급받아야 합니다.
+  </p>
+  <pre class="token-out" data-testid="new-token-plaintext">{{ new_token.plaintext }}</pre>
+  <div class="copy-row">
+    <button type="button" class="btn" data-testid="copy-token"
+            onclick="navigator.clipboard.writeText('{{ new_token.plaintext }}').then(() => this.textContent = '복사됨 ✓')">
+      📋 복사
+    </button>
+    <span class="muted" style="font-size:12px;">
+      이름: <strong>{{ new_token.name }}</strong> · prefix: <code>{{ new_token.prefix }}</code> · 만료: {{ new_token.expires_at }}
+    </span>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>새 토큰 발급</h2>
+  <form method="post" action="{{ url('/settings/tokens/issue') }}" class="issue-form" data-testid="issue-form">
+    {{ csrf_input() }}
+    <div class="field">
+      <label for="t-name">이름</label>
+      <input type="text" name="name" id="t-name" required maxlength="100"
+             value="{{ form.name or '' }}" data-testid="t-name"
+             placeholder="예: my-laptop, claude-code">
+    </div>
+    <div class="field">
+      <label for="t-days">만료 (일)</label>
+      <input type="number" name="expires_in_days" id="t-days" min="1" max="365"
+             value="{{ form.expires_in_days or 30 }}" data-testid="t-days">
+    </div>
+    <button type="submit" class="btn primary" data-testid="t-submit">발급</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>내 토큰 목록</h2>
+  {% if tokens %}
+  <table data-testid="tokens-table">
+    <thead>
+      <tr><th>이름</th><th>prefix</th><th>만료</th><th>last used</th><th>상태</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for t in tokens %}
+      <tr data-testid="token-row-{{ t.prefix }}">
+        <td>{{ t.name }}</td>
+        <td><code>{{ t.prefix }}</code></td>
+        <td>{{ t.expires_at }}</td>
+        <td>{{ t.last_used_at or '-' }}</td>
+        <td>
+          {% if t.active %}<span class="ok" data-testid="status-{{ t.prefix }}">active</span>
+          {% else %}<span class="revoked" data-testid="status-{{ t.prefix }}">revoked</span>{% endif %}
+        </td>
+        <td>
+          {% if t.active %}
+          <form method="post" action="{{ url('/settings/tokens/' ~ t.prefix ~ '/revoke') }}" style="margin:0;"
+                onsubmit="return confirm('정말 폐기하시겠습니까? 폐기 후엔 이 토큰을 사용하는 모든 클라이언트가 401 을 받습니다.');">
+            {{ csrf_input() }}
+            <button type="submit" class="revoke-btn" data-testid="revoke-{{ t.prefix }}">폐기</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted" data-testid="empty-tokens">아직 발급된 토큰 없음.</p>
+  {% endif %}
+</div>
+{% endblock %}

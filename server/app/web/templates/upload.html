@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}업로드 — Hybe Reports{% endblock %}
+{% block head_extra %}
+<style>
+  .panel { background: var(--panel); border: 1px solid var(--border);
+           border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+  .panel h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase;
+              letter-spacing: 1px; color: var(--muted); }
+  form.upload .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  form.upload label { color: var(--muted); font-size: 12px;
+                      text-transform: uppercase; letter-spacing: 1px; }
+  form.upload input[type=text], form.upload textarea {
+    width: 100%;
+  }
+  form.upload textarea { min-height: 60px; resize: vertical; font-family: inherit; }
+  .help { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+  .radio-row { display: flex; gap: 16px; padding: 4px 0; }
+  .radio-row label { color: var(--text); display: inline-flex; gap: 6px;
+                     align-items: center; font-size: 14px; text-transform: none;
+                     letter-spacing: 0; cursor: pointer; }
+  .dropzone {
+    display: block;
+    border: 2px dashed rgba(255,255,255,0.18); border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center; transition: border-color 0.15s ease, background 0.15s ease;
+    cursor: pointer; background: var(--panel-2);
+  }
+  .dropzone.dragover { border-color: var(--accent); background: rgba(76,201,240,0.05); }
+  .dropzone .picked { color: var(--accent); font-weight: 600; }
+  /* Standard "visually-hidden" — keeps it focusable / submittable but invisible. */
+  .visually-hidden {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+  .err { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.4);
+         color: var(--bad); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+  .actions { display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+{% endblock %}
+{% block main %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+  <h1 style="font-size:22px; margin:0;">📤 리포트 업로드</h1>
+  <a href="{{ url('/') }}" class="btn">← 홈</a>
+</div>
+
+{% if error %}
+<div class="err" data-testid="upload-error">{{ error }}</div>
+{% endif %}
+
+<form class="upload panel" method="post" action="{{ url('/upload') }}" enctype="multipart/form-data" data-testid="upload-form">
+  {{ csrf_input() }}
+  <label for="file-input" class="dropzone" data-testid="dropzone" id="dropzone">
+    <div data-testid="dz-label">여기에 .zip 파일을 끌어다 놓거나 클릭해서 선택</div>
+    <div class="help">
+      <code>index.html</code> 이 zip <strong>루트</strong>에 있어야 함 — 폴더 자체 말고 <em>폴더 안의 내용</em>을 묶기.<br>
+      예: <code>cd my-report &amp;&amp; zip -r ../my-report.zip .</code> · 최대 100MB
+    </div>
+  </label>
+  <input type="file" name="file" accept=".zip,application/zip"
+         data-testid="file-input" id="file-input" class="visually-hidden">
+
+  <div class="field" style="margin-top:24px">
+    <label for="f-slug">slug (URL 식별자)</label>
+    <input type="text" name="slug" id="f-slug"
+           value="{{ form.slug or '' }}"
+           pattern="[a-z0-9][a-z0-9\-]{1,62}[a-z0-9]"
+           data-testid="f-slug"
+           placeholder="비워두면 파일명에서 자동 생성">
+    <p class="help">
+      URL 에 들어갈 식별자 → <code>/r/<strong>my-slug</strong>/</code>. 한 번 정하면 변경 X (재배포 시 동일 slug 유지).<br>
+      소문자/숫자/하이픈, 3~64자. 예: <code>q4-revenue-2026</code>, <code>2026-04-marketing-deep-dive</code>
+    </p>
+  </div>
+
+  <div class="field">
+    <label for="f-title">제목</label>
+    <input type="text" name="title" id="f-title"
+           value="{{ form.title or '' }}" data-testid="f-title"
+           placeholder="비워두면 slug 사용">
+    <p class="help">홈 카드와 리포트 페이지 상단에 표시. 한글/공백/이모지 OK.</p>
+  </div>
+
+  <div class="field">
+    <label for="f-desc">설명 (선택)</label>
+    <textarea name="description" id="f-desc"
+              data-testid="f-desc">{{ form.description or '' }}</textarea>
+    <p class="help">한 줄 요약. 카드 미리보기와 검색에 사용.</p>
+  </div>
+
+  <div class="field">
+    <label>가시성</label>
+    <div class="radio-row">
+      <label>
+        <input type="radio" name="visibility" value="restricted"
+               {% if (form.visibility or 'restricted') == 'restricted' %}checked{% endif %}
+               data-testid="vis-restricted">
+        🔒 restricted (owner + viewers)
+      </label>
+      <label>
+        <input type="radio" name="visibility" value="internal"
+               {% if form.visibility == 'internal' %}checked{% endif %}
+               data-testid="vis-internal">
+        🌐 internal (모든 로그인 사용자)
+      </label>
+    </div>
+    <p class="help">
+      <strong>restricted</strong>: owner + 명시적으로 추가한 viewer 만 접근. 민감한 리포트 기본값.<br>
+      <strong>internal</strong>: 사내 로그인 사용자 모두 (외부 차단). 업로드 후에 리포트 상세에서 변경 가능.
+    </p>
+  </div>
+
+  <div class="field">
+    <label for="f-tags">태그 (선택, 쉼표 구분)</label>
+    <input type="text" name="tags" id="f-tags"
+           value="{{ form.tags or '' }}" data-testid="f-tags"
+           placeholder="analytics, q4-2026">
+    <p class="help">홈에서 검색/필터링에 사용. 일관된 단어를 쓰면 나중에 모아 보기 쉬움 (예: <code>analytics</code>, <code>weekly</code>, <code>kpi</code>).</p>
+  </div>
+
+  <div class="actions">
+    <a href="{{ url('/') }}" class="btn">취소</a>
+    <button type="submit" class="btn primary" data-testid="upload-submit">업로드</button>
+  </div>
+</form>
+
+<script>
+  // dropzone visual feedback (file is still passed via native input)
+  (function() {
+    const dz = document.getElementById('dropzone');
+    const inp = document.getElementById('file-input');
+    const label = document.querySelector('[data-testid="dz-label"]');
+    if (!dz || !inp) return;
+    inp.addEventListener('change', () => {
+      const f = inp.files && inp.files[0];
+      if (f) label.innerHTML = '선택됨: <span class="picked">' + f.name + '</span> (' + Math.round(f.size/1024) + ' KB)';
+    });
+    ['dragover','dragenter'].forEach(e => dz.addEventListener(e, ev => {
+      ev.preventDefault(); dz.classList.add('dragover');
+    }));
+    ['dragleave','drop'].forEach(e => dz.addEventListener(e, ev => {
+      ev.preventDefault(); dz.classList.remove('dragover');
+    }));
+    dz.addEventListener('drop', ev => {
+      ev.preventDefault();
+      if (ev.dataTransfer.files && ev.dataTransfer.files[0]) {
+        inp.files = ev.dataTransfer.files;
+        inp.dispatchEvent(new Event('change'));
+      }
+    });
+  })();
+</script>
+{% endblock %}

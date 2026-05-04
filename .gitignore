@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-local
+config.toml
+*.db
+*.db-wal
+*.db-shm
+var/
+server/var/
+*.log
+.env
+.env.*
+!.env.example
+
+# Test artifacts
+test_web/
+test_web.zip
+*.pem
+
+# Pytest temp
+.coverage
+.pytest_cache/
+
+# uvicorn/caddy logs
+/tmp/uvicorn.log
+/tmp/caddy.log

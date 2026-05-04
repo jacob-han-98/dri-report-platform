@@ -50,13 +50,21 @@ def _humanize(status: int, detail: object) -> str:
 class Client:
     def __init__(self, config: Config):
         self._cfg = config
+        # base 는 끝의 '/' 를 정규화. base_url 이 path prefix 를 가질 수 있어서
+        # (예: "https://cp.tech2.hybe.im/dri_report") httpx.Client(base_url=...)
+        # 의 RFC 3986 합성에 의존하지 않고 수동으로 URL 을 만든다.
+        self._base = config.base_url.rstrip("/")
         self._http = httpx.Client(
-            base_url=config.base_url,
             headers={"Authorization": f"Bearer {config.token}"},
             verify=config.verify_tls,
             timeout=60.0,
             follow_redirects=False,
         )
+
+    def _u(self, path: str) -> str:
+        if not path.startswith("/"):
+            path = "/" + path
+        return f"{self._base}{path}"
 
     def close(self) -> None:
         self._http.close()
@@ -64,7 +72,7 @@ class Client:
     # ---- introspection ----
 
     def whoami(self) -> dict:
-        r = self._http.get("/auth/check")
+        r = self._http.get(self._u("/auth/check"))
         if r.status_code != 200:
             raise HybeError(r.status_code, _humanize(r.status_code, r.text))
         return {
@@ -78,10 +86,10 @@ class Client:
         params: dict[str, str] = {}
         if owner:
             params["owner"] = owner
-        return _check(self._http.get("/api/reports", params=params))
+        return _check(self._http.get(self._u("/api/reports"), params=params))
 
     def get_report(self, slug: str) -> dict:
-        return _check(self._http.get(f"/api/reports/{slug}"))
+        return _check(self._http.get(self._u(f"/api/reports/{slug}")))
 
     def deploy(self, zip_path: Path, meta: dict) -> dict:
         import json as _json
@@ -89,34 +97,34 @@ class Client:
         with zip_path.open("rb") as f:
             files = {"file": (zip_path.name, f, "application/zip")}
             data = {"meta": _json.dumps(meta)}
-            return _check(self._http.post("/api/reports", files=files, data=data))
+            return _check(self._http.post(self._u("/api/reports"), files=files, data=data))
 
     def redeploy(self, slug: str, zip_path: Path) -> dict:
         with zip_path.open("rb") as f:
             files = {"file": (zip_path.name, f, "application/zip")}
-            return _check(self._http.put(f"/api/reports/{slug}", files=files))
+            return _check(self._http.put(self._u(f"/api/reports/{slug}"), files=files))
 
     def patch_report(self, slug: str, **fields) -> dict:
         body = {k: v for k, v in fields.items() if v is not None}
         return _check(
-            self._http.patch(f"/api/reports/{slug}", json=body)
+            self._http.patch(self._u(f"/api/reports/{slug}"), json=body)
         )
 
     def delete_report(self, slug: str) -> None:
-        _check(self._http.delete(f"/api/reports/{slug}"))
+        _check(self._http.delete(self._u(f"/api/reports/{slug}")))
 
     # ---- viewers ----
 
     def list_viewers(self, slug: str) -> list[dict]:
-        return _check(self._http.get(f"/api/reports/{slug}/viewers"))
+        return _check(self._http.get(self._u(f"/api/reports/{slug}/viewers")))
 
     def add_viewer(self, slug: str, email: str) -> dict:
         return _check(
             self._http.post(
-                f"/api/reports/{slug}/viewers",
+                self._u(f"/api/reports/{slug}/viewers"),
                 json={"user_email": email},
             )
         )
 
     def remove_viewer(self, slug: str, email: str) -> None:
-        _check(self._http.delete(f"/api/reports/{slug}/viewers/{email}"))
+        _check(self._http.delete(self._u(f"/api/reports/{slug}/viewers/{email}")))

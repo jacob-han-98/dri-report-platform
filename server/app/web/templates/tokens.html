@@ -27,6 +27,13 @@
     overflow-x: auto; font-size: 13px; word-break: break-all; white-space: pre-wrap;
     border: 1px solid var(--accent); margin: 0;
   }
+  pre.prompt-block {
+    background: #0a0e15; padding: 16px 16px 16px 16px;
+    border: 1px solid rgba(76,201,240,0.3); border-radius: 8px;
+    font-size: 12.5px; line-height: 1.55;
+    color: var(--text); white-space: pre-wrap; word-break: break-word;
+    margin: 0; max-height: 400px; overflow-y: auto;
+  }
   .copy-row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
   .warn {
     color: var(--warn); font-size: 13px; margin: 8px 0 0;
@@ -59,11 +66,50 @@
   <div class="copy-row">
     <button type="button" class="btn" data-testid="copy-token"
             onclick="navigator.clipboard.writeText('{{ new_token.plaintext }}').then(() => this.textContent = '복사됨 ✓')">
-      📋 복사
+      📋 토큰만 복사
     </button>
     <span class="muted" style="font-size:12px;">
       이름: <strong>{{ new_token.name }}</strong> · prefix: <code>{{ new_token.prefix }}</code> · 만료: {{ new_token.expires_at }}
     </span>
+  </div>
+
+  <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:20px 0">
+
+  <h3 style="margin:0 0 10px; font-size:14px;">🚀 바로 시작하기</h3>
+  <p class="muted" style="font-size:13px; margin: 0 0 12px;">
+    아래 블록 전체를 복사해서 <strong>Claude Code 세션</strong>에 붙여넣으면 끝.
+    Claude 가 알아서 설치 → 로그인 → 어떤 디렉토리 올릴지 묻기 → 배포 → URL 출력합니다.
+  </p>
+
+  <div style="position:relative;">
+    <pre class="prompt-block" data-testid="claude-prompt-block">{{ '
+Hybe Reports 에 HTML 리포트를 올리고 싶어. 다음 단계로 진행해줘:
+
+1) `hybe-reports` CLI 가 설치돼 있는지 확인하고, 없으면 설치:
+     pip install --user --upgrade ' ~ wheel_url ~ '
+
+2) 로그인 (토큰은 아래에 박혀있음, 한 번만 실행하면 keyring 에 저장됨):
+     hybe-reports login --base-url ' ~ api_base_url ~ ' --token ' ~ new_token.plaintext ~ '
+
+3) 어떤 디렉토리를 올릴지 나에게 물어봐 (예: ./my-report, /tmp/site).
+   답을 받으면 그 디렉토리에 `index.html` 이 루트에 있는지 확인.
+   없으면 어떤 .html 이 entry point 인지 묻고 진행.
+
+4) 배포:
+     hybe-reports deploy <DIR> --visibility internal --title "<적절한 제목>"
+   - slug 는 자동 생성 (디렉토리명 기반). 사용자가 원하면 --slug 로 지정.
+   - 권한이 사내 모두 (internal) 면 internal, 본인+초대자만이면 restricted.
+
+5) 결과 URL 을 사용자에게 보여주고, 가능하면 클립보드에도 복사해줘.
+
+베이스 URL: ' ~ api_base_url ~ '
+'.strip() }}</pre>
+    <button type="button" class="btn primary"
+            style="position:absolute; top:8px; right:8px; padding:6px 12px;"
+            data-testid="copy-prompt"
+            onclick="const t=document.querySelector('[data-testid=claude-prompt-block]').textContent; const b=this; navigator.clipboard.writeText(t).then(()=>{b.textContent='✓ 복사됨';});">
+      📋 전체 복사
+    </button>
   </div>
 </div>
 {% endif %}
@@ -121,5 +167,45 @@
   {% else %}
   <p class="muted" data-testid="empty-tokens">아직 발급된 토큰 없음.</p>
   {% endif %}
+</div>
+
+<div class="panel" data-testid="usage-guide">
+  <h2>📖 사용 가이드 (수동)</h2>
+  <p class="muted" style="font-size:13px; margin: 0 0 16px;">
+    위 "바로 시작하기" 블록이 가장 쉬운 길. 직접 명령을 쓰고 싶다면 아래 참고.
+  </p>
+
+  <h3 style="font-size:13px; margin: 12px 0 6px;">1) skill (CLI) 설치</h3>
+  <pre class="token-out" style="border-color:rgba(255,255,255,0.12);">pip install --user --upgrade {{ wheel_url }}</pre>
+
+  <h3 style="font-size:13px; margin: 16px 0 6px;">2) 로그인 (토큰을 keyring 에 저장)</h3>
+  <pre class="token-out" style="border-color:rgba(255,255,255,0.12);">hybe-reports login --base-url {{ api_base_url }} --token &lt;발급한 토큰&gt;</pre>
+
+  <h3 style="font-size:13px; margin: 16px 0 6px;">3) 자주 쓰는 명령</h3>
+  <pre class="token-out" style="border-color:rgba(255,255,255,0.12);">hybe-reports deploy ./report-dir --visibility internal --title "Q4 분석"
+hybe-reports list --mine
+hybe-reports info q4-revenue
+hybe-reports share q4-revenue --add sarah@hybecorp.com
+hybe-reports redeploy q4-revenue ./report-dir
+hybe-reports delete q4-revenue</pre>
+
+  <h3 style="font-size:13px; margin: 16px 0 6px;">4) Claude Desktop MCP 설정</h3>
+  <p class="muted" style="font-size:12px; margin: 0 0 6px;">
+    Claude Desktop 설정 파일 (보통 <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> 또는 <code>%APPDATA%\Claude\claude_desktop_config.json</code>) 의
+    <code>mcpServers</code> 에 아래 항목 추가:
+  </p>
+  <pre class="token-out" style="border-color:rgba(255,255,255,0.12);">{
+  "mcpServers": {
+    "hybe-reports": {
+      "url": "{{ mcp_url }}",
+      "headers": {
+        "Authorization": "Bearer &lt;발급한 토큰&gt;"
+      }
+    }
+  }
+}</pre>
+  <p class="muted" style="font-size:12px; margin: 6px 0 0;">
+    설정 후 Claude Desktop 재시작 → 다른 Claude 인스턴스가 같은 토큰으로 리포트 검색/조회 가능.
+  </p>
 </div>
 {% endblock %}

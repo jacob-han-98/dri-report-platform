@@ -273,6 +273,9 @@ def _render_tokens(
     error: str | None = None,
     form: dict | None = None,
 ) -> HTMLResponse:
+    settings = get_settings()
+    base = settings.app.base_url.rstrip("/")
+    prefix = settings.app.web_prefix
     return templates.TemplateResponse(
         request,
         "tokens.html",
@@ -282,6 +285,10 @@ def _render_tokens(
             "new_token": new_token,
             "error": error,
             "form": form or {},
+            # 가이드 / 빠른 시작에서 사용
+            "api_base_url": f"{base}{prefix}",
+            "wheel_url": f"{base}{prefix}/static/hybe_reports-latest.whl",
+            "mcp_url": f"{base}{prefix}/mcp/",
         },
     )
 

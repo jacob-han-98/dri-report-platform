@@ -57,6 +57,10 @@ mkdir -p "$SERVER_DIR/var/reports/_meta"
 echo "[5/7] DB 마이그레이션..."
 HYBE_REPORTS_CONFIG="$CONFIG_FILE" "$VENV_DIR/bin/alembic" upgrade head
 
+# ── 5b. skill wheel ──
+echo "[5b] skill wheel 빌드..."
+bash "$APP_DIR/deploy/build_skill_wheel.sh"
+
 # ── 6. systemd ──
 echo "[6/7] systemd 등록..."
 sudo cp "$APP_DIR/deploy/systemd/dri-report.service" /etc/systemd/system/

@@ -53,6 +53,9 @@ VIRTUAL_ENV=.venv uv pip install -e ../skill
 
 HYBE_REPORTS_CONFIG=$REMOTE_DIR/config.toml .venv/bin/alembic upgrade head
 
+# skill wheel 재빌드 (버전 또는 코드 변경 반영)
+bash $REMOTE_DIR/deploy/build_skill_wheel.sh
+
 sudo systemctl restart $SERVICE_NAME
 sleep 2
 sudo systemctl status $SERVICE_NAME --no-pager | head -8

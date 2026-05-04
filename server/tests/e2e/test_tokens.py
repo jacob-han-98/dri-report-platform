@@ -61,7 +61,7 @@ def test_issue_token_shows_plaintext_once(
     assert len(matching) == 1
     prefix = matching[0]["prefix"]
     expect(page.get_by_test_id(f"token-row-{prefix}")).to_be_visible()
-    expect(page.get_by_test_id(f"status-{prefix}")).to_have_text("active")
+    expect(page.get_by_test_id(f"status-{prefix}")).to_have_text("사용 중")
 
     # reload — plaintext panel is gone (one-time only)
     page.goto(f"{base_url}/settings/tokens")
@@ -80,14 +80,14 @@ def test_revoke_token(page: Page, base_url: str, cleanup_tokens) -> None:
     prefix = r.json()["prefix"]
 
     page.goto(f"{base_url}/settings/tokens")
-    expect(page.get_by_test_id(f"status-{prefix}")).to_have_text("active")
+    expect(page.get_by_test_id(f"status-{prefix}")).to_have_text("사용 중")
 
     # confirm() dialog → accept
     page.on("dialog", lambda d: d.accept())
     page.get_by_test_id(f"revoke-{prefix}").click()
 
     # row still there but status revoked, no revoke button
-    expect(page.get_by_test_id(f"status-{prefix}")).to_have_text("revoked")
+    expect(page.get_by_test_id(f"status-{prefix}")).to_have_text("폐기됨")
     expect(page.get_by_test_id(f"revoke-{prefix}")).to_have_count(0)
 
 

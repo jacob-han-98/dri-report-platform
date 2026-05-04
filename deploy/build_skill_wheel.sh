@@ -19,12 +19,17 @@ mkdir -p "$STATIC_DIR"
 cd "$SKILL_DIR"
 rm -rf dist/
 
-# uv build → dist/*.whl  (uv 가 없으면 python -m build 로 fallback)
-if command -v uv >/dev/null 2>&1; then
-    uv build --wheel --out-dir dist
+# uv 먼저, 없으면 venv 의 hatchling 으로 직접 빌드 (pip 없어도 됨)
+UV="$(command -v uv || true)"
+[ -z "$UV" ] && [ -x "$HOME/.local/bin/uv" ] && UV="$HOME/.local/bin/uv"
+
+if [ -n "$UV" ]; then
+    "$UV" build --wheel --out-dir dist
 elif [ -x "$VENV/bin/python" ]; then
-    "$VENV/bin/python" -m pip install -q build
-    "$VENV/bin/python" -m build --wheel --outdir dist
+    # hatchling 은 server venv 에 이미 들어있음 (build dep)
+    "$VENV/bin/python" -m hatchling build -t wheel
+    mkdir -p dist
+    mv dist/*.whl dist/ 2>/dev/null || true
 else
     echo "  ❌ uv 도 venv 도 없음. 빌드 불가."
     exit 1

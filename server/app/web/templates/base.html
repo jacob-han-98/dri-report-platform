@@ -100,6 +100,8 @@
     {% if user.role == 'admin' %}
     <a href="{{ url('/settings/users') }}" data-testid="nav-users">사용자</a>
     <a href="{{ url('/settings/audit') }}" data-testid="nav-audit">감사로그</a>
+    <a href="https://github.com/jacob-han-98/dri-report-platform" target="_blank" rel="noopener"
+       data-testid="nav-github" title="GitHub 리포지토리 (소스 코드 — admin 전용 링크)">GitHub ↗</a>
     {% endif %}
   </nav>
   {% if user.actual_role == 'admin' and not user.view_as_active %}
